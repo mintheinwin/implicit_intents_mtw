@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.CalendarContract;
 import android.provider.MediaStore;
 import android.support.annotation.Nullable;
@@ -50,6 +51,22 @@ public abstract class BaseActivity extends AppCompatActivity {
             if (requestCode == REQUEST_IMAGE_CAPTURE) {
                 Bundle extras = data.getExtras();
                 Bitmap bitmap = (Bitmap) extras.get("data");
+            } else if (requestCode == REQUEST_SELECT_IMAGE_ABOVE_KITKAT) {
+                Uri originalUri = data.getData();
+                final int takeFlags = data.getFlags()
+                        & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                getContentResolver().takePersistableUriPermission(originalUri, takeFlags);
+                String id = originalUri.getLastPathSegment().split(":")[1];
+                final String[] imageColumns = {MediaStore.Images.Media.DATA};
+                final String imageOrderBy = null;
+                Uri uri = getUri();
+                String selectedImagePath = "path";
+                Cursor imageCursor = managedQuery(uri, imageColumns,
+                        MediaStore.Images.Media._ID + "=" + id, null, imageOrderBy);
+                if (imageCursor.moveToFirst()) {
+                    selectedImagePath = imageCursor.getString(imageCursor.getColumnIndex(MediaStore.Images.Media.DATA));
+                }
             } else if (requestCode == REQUEST_SELECT_IMAGE_LOWER_KITKAT) {
                 Uri uri = data.getData();
                 String[] projection = {MediaStore.Images.Media.DATA};
@@ -186,5 +203,13 @@ public abstract class BaseActivity extends AppCompatActivity {
             intent.putExtra("title", "A Test Event from android app");
             startActivity(intent);
         }
+    }
+
+    private Uri getUri() {
+        String state = Environment.getExternalStorageState();
+        if (!state.equalsIgnoreCase(Environment.MEDIA_MOUNTED))
+            return MediaStore.Images.Media.INTERNAL_CONTENT_URI;
+
+        return MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
     }
 }
